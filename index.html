@@ -228,4 +228,35 @@
         document.getElementById('saveScheduleBtn').addEventListener('click', () => {
             const selectedType = document.querySelector('input[name="overtimeType"]:checked').value;
             const worker = workerName.value.trim();
-            const memo
+            const memo = memoInput.value.trim();
+
+            const dateRef = ref(db, `schedules_v2/${selectedDateId}`);
+            
+            // 데이터가 모두 비어있으면 삭제, 아니면 객체로 저장
+            if (!selectedType && !worker && !memo) {
+                set(dateRef, null);
+            } else {
+                set(dateRef, {
+                    overtimeType: selectedType,
+                    workerName: worker,
+                    memo: memo
+                });
+            }
+            modal.classList.add('hidden');
+        });
+
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+            renderCalendar(currentYear, currentMonth);
+        });
+
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+            renderCalendar(currentYear, currentMonth);
+        });
+
+    </script>
+</body>
+</html>
