@@ -2,287 +2,183 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <!-- 모바일 환경에 최적화하기 위한 뷰포트 설정 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>서울 소방 화재조사팀 스케줄표</title>
     <!-- Tailwind CSS 로드 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 웹폰트 적용 (Pretendard) */
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         body { font-family: 'Pretendard', sans-serif; }
-        
-        /* 모바일에서 터치 시 하이라이트 방지 및 스크롤바 숨김 */
         .no-tap-highlight { -webkit-tap-highlight-color: transparent; }
-        ::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
 
-    <div class="max-w-md mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
-        
-        <!-- 헤더 영역 (월 이동 버튼 및 타이틀) -->
-        <header class="flex justify-between items-center p-4 border-b bg-white sticky top-0 z-10">
-            <button id="prevMonth" class="p-2 text-gray-500 hover:text-black hover:bg-gray-100 rounded-full transition no-tap-highlight">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
-            </button>
+    <!-- 메인 달력 화면 -->
+    <div class="max-w-md mx-auto bg-white min-h-screen shadow-lg relative">
+        <!-- 상단 헤더 (월 이동) -->
+        <div class="flex justify-between items-center p-4 bg-blue-700 text-white sticky top-0 z-10">
+            <button id="prevBtn" class="p-2 no-tap-highlight text-xl font-bold">&lt;</button>
             <h1 id="monthTitle" class="text-xl font-bold tracking-tight">2026년 10월</h1>
-            <button id="nextMonth" class="p-2 text-gray-500 hover:text-black hover:bg-gray-100 rounded-full transition no-tap-highlight">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-            </button>
-        </header>
-
-        <!-- 요일 헤더 -->
-        <div class="grid grid-cols-7 text-center text-xs font-semibold bg-gray-50 py-2 border-b">
-            <div class="text-red-500">일</div>
-            <div>월</div>
-            <div>화</div>
-            <div>수</div>
-            <div>목</div>
-            <div>금</div>
-            <div class="text-blue-500">토</div>
+            <button id="nextBtn" class="p-2 no-tap-highlight text-xl font-bold">&gt;</button>
         </div>
 
-        <!-- 달력 날짜 그리드 (JavaScript로 동적 생성됨) -->
-        <div id="calendarGrid" class="grid grid-cols-7 auto-rows-[minmax(85px,auto)] bg-gray-200 gap-px flex-1 pb-4">
-            <!-- 달력 셀들이 여기에 렌더링 됩니다. -->
+        <!-- 요일 표시 -->
+        <div class="grid grid-cols-7 text-center font-bold text-sm py-3 border-b bg-gray-50">
+            <div class="text-red-500">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div class="text-blue-500">토</div>
+        </div>
+
+        <!-- 달력 날짜 그리드 -->
+        <div id="calendarGrid" class="grid grid-cols-7 auto-rows-[90px] border-b bg-white">
+            <!-- 자바스크립트로 날짜가 채워집니다 -->
         </div>
     </div>
 
-    <div id="detailModal" class="fixed inset-0 bg-black/60 z-50 hidden opacity-0 transition-opacity duration-300 flex items-center justify-center px-4">
-        <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl transform scale-95 transition-transform duration-300 p-5 flex flex-col gap-4">
-            
-            <div class="flex justify-between items-center border-b pb-3">
-                <h2 id="modalDateTitle" class="text-lg font-bold text-gray-800">10월 7일 (수)</h2>
-                <button id="closeModal" class="text-gray-400 hover:text-gray-700 p-1 rounded-full bg-gray-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
+    <!-- 스케줄 입력 팝업창 (모달) -->
+    <div id="scheduleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div class="bg-white p-6 rounded-xl w-5/6 max-w-sm shadow-2xl">
+            <h2 id="modalDateTitle" class="text-lg font-bold mb-4 text-blue-700"></h2>
+            <label class="block text-sm font-semibold mb-2">근무 및 일정 입력</label>
+            <textarea id="scheduleInput" rows="3" placeholder="예: 당번(파닥몬)&#10;주간초과(펭펭몬) 09:00~11:00&#10;오후 국과수 감정" class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 text-sm"></textarea>
+            <div class="flex justify-end gap-3">
+                <button id="closeModalBtn" class="px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg">닫기</button>
+                <button id="saveScheduleBtn" class="px-4 py-2 bg-blue-700 text-white font-semibold rounded-lg">저장하기</button>
             </div>
-
-            <!-- 모달 내용 (당/비/비 근무자, 초과근무, 팀 일정) -->
-            <div id="modalContent" class="space-y-4">
-                <!-- 자바스크립트로 동적 렌더링 됨 -->
-            </div>
-            
-            <button id="closeModalBtn" class="mt-2 w-full bg-blue-600 text-white font-semibold py-3 rounded-xl active:bg-blue-700 transition">닫기</button>
         </div>
     </div>
 
-    <script>
-        // 현재 날짜 상태 관리 (기본값: 2026년 10월)
-        let currentDate = new Date(2026, 9, 1); // JS에서 month는 0부터 시작하므로 9가 10월
+    <!-- Firebase SDK 및 달력 로직 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
 
-        // Firebase 연동 전에 사용할 가짜(Mock) 데이터 설정
-        // 당비비 패턴과 초과근무, 팀 일정을 시뮬레이션 합니다.
-        const mockData = {
-            "2026-10-07": {
-                shifts: [
-                    { name: "파닥몬", type: "당번", class: "bg-red-500 text-white" },
-                    { name: "아구몬", type: "비번", class: "bg-gray-300 text-gray-600" },
-                    { name: "태일이", type: "비번", class: "bg-gray-300 text-gray-600" }
-                ],
-                overtimes: [
-                    { name: "파닥몬", type: "주간", time: "09:00~18:00" },
-                    { name: "매튜", type: "시간", time: "09:00~11:00" }
-                ],
-                events: [
-                    { title: "재연실험", location: "방재시험연구원", time: "14:00~16:00", icon: "🔬" },
-                    { title: "국과수 방문", location: "원주 본원", time: "16:30", icon: "🏢" }
-                ]
-            },
-            "2026-10-08": {
-                shifts: [
-                    { name: "파닥몬", type: "비번", class: "bg-gray-300 text-gray-600" },
-                    { name: "아구몬", type: "당번", class: "bg-red-500 text-white" }
-                ],
-                overtimes: [
-                    { name: "한솔이", type: "야간", time: "18:00~09:00" }
-                ],
-                events: []
-            },
-            "2026-10-15": {
-                shifts: [
-                    { name: "파닥몬", type: "당번", class: "bg-red-500 text-white" }
-                ],
-                overtimes: [],
-                events: [
-                    { title: "경찰 합동감식", location: "종로구 서린동", time: "10:00", icon: "🚨" }
-                ]
-            }
+        // ==========================================
+        // [중요] 아래 firebaseConfig 내용을 본인의 코드로 덮어씌우세요!
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyB_VB9Jt0fJvoxD76PtnYiHL59EZrmtSwA",
+            authDomain: "schedule-bydy.firebaseapp.com",
+            projectId: "schedule-bydy",
+            storageBucket: "schedule-bydy.firebasestorage.app",
+            messagingSenderId: "722259608031",
+            appId: "1:722259608031:web:dd3a7b0ac9758ed8bd046a"
         };
+        // ==========================================
 
-        function renderCalendar() {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-            
-            // 헤더 타이틀 업데이트
-            document.getElementById('monthTitle').textContent = `${year}년 ${month + 1}월`;
-            
-            const firstDay = new Date(year, month, 1).getDay();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            
-            const calendarGrid = document.getElementById('calendarGrid');
-            calendarGrid.innerHTML = ''; // 기존 내용 초기화
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
-            // 1일 이전의 빈 칸 채우기
+        // 상태 변수
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth() + 1;
+        let selectedDateId = ""; 
+        let globalScheduleData = {}; // Firebase에서 불러온 전체 데이터
+
+        // DOM 요소
+        const monthTitle = document.getElementById('monthTitle');
+        const calendarGrid = document.getElementById('calendarGrid');
+        const modal = document.getElementById('scheduleModal');
+        const modalDateTitle = document.getElementById('modalDateTitle');
+        const scheduleInput = document.getElementById('scheduleInput');
+
+        // Firebase 데이터 실시간 구독 (schedules 경로)
+        const schedulesRef = ref(db, 'schedules');
+        onValue(schedulesRef, (snapshot) => {
+            globalScheduleData = snapshot.val() || {};
+            renderCalendar(currentYear, currentMonth); // 데이터가 바뀔 때마다 달력 다시 그리기
+        });
+
+        // 달력 렌더링 함수
+        function renderCalendar(year, month) {
+            calendarGrid.innerHTML = ''; // 초기화
+            monthTitle.textContent = `${year}년 ${month}월`;
+
+            const firstDay = new Date(year, month - 1, 1).getDay();
+            const lastDate = new Date(year, month, 0).getDate();
+
+            // 빈 칸 채우기
             for (let i = 0; i < firstDay; i++) {
-                const emptyCell = document.createElement('div');
-                emptyCell.className = "bg-white/50";
-                calendarGrid.appendChild(emptyCell);
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'border-r border-b bg-gray-50';
+                calendarGrid.appendChild(emptyDiv);
             }
 
-            // 날짜 셀 생성
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const cellData = mockData[dateString];
+            // 날짜 채우기
+            for (let i = 1; i <= lastDate; i++) {
+                const dateDiv = document.createElement('div');
+                dateDiv.className = 'border-r border-b p-1 flex flex-col relative active:bg-gray-100 no-tap-highlight cursor-pointer';
                 
-                // 일요일(0), 토요일(6) 텍스트 색상 구분
-                const dayOfWeek = new Date(year, month, day).getDay();
-                const dateColorClass = dayOfWeek === 0 ? 'text-red-500' : (dayOfWeek === 6 ? 'text-blue-500' : 'text-gray-800');
+                // 날짜 포맷 (예: 2026-10-07)
+                const dateString = `${year}-${String(month).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                
+                // 날짜 숫자
+                const daySpan = document.createElement('span');
+                daySpan.className = 'text-xs font-bold mb-1';
+                // 일요일은 빨간색, 토요일은 파란색
+                const currentDayOfWeek = new Date(year, month - 1, i).getDay();
+                if (currentDayOfWeek === 0) daySpan.classList.add('text-red-500');
+                if (currentDayOfWeek === 6) daySpan.classList.add('text-blue-500');
+                daySpan.textContent = i;
+                dateDiv.appendChild(daySpan);
 
-                let cellHtml = `
-                    <div class="bg-white p-1 flex flex-col h-full relative cursor-pointer active:bg-gray-100 transition duration-150 overflow-hidden no-tap-highlight" 
-                         onclick="openModal('${dateString}', ${day}, ${dayOfWeek})">
-                        <span class="text-xs font-semibold mb-1 ${dateColorClass} pl-1">${day}</span>
-                        <div class="flex flex-col gap-[2px] flex-1">
-                `;
-
-                // 데이터가 있을 경우 화면에 표시할 뱃지 및 텍스트 추가
-                if (cellData) {
-                    // 당/비/비 근무자 표시 (작은 바 형태)
-                    if (cellData.shifts && cellData.shifts.length > 0) {
-                        const shift = cellData.shifts.find(s => s.type === "당번");
-                        if(shift) {
-                            cellHtml += `<div class="text-[9px] ${shift.class} rounded-sm px-1 truncate shadow-sm">당: ${shift.name}</div>`;
-                        }
-                    }
-
-                    // 초과근무 표시
-                    if (cellData.overtimes) {
-                        cellData.overtimes.forEach(ot => {
-                            cellHtml += `<div class="text-[9px] bg-orange-100 text-orange-700 border border-orange-200 rounded-sm px-1 truncate">[${ot.type}] ${ot.name}</div>`;
-                        });
-                    }
-
-                    // 팀 일정 표시
-                    if (cellData.events) {
-                        cellData.events.forEach(ev => {
-                            cellHtml += `<div class="text-[10px] text-gray-700 truncate mt-auto leading-tight">${ev.icon}${ev.title}</div>`;
-                        });
-                    }
+                // Firebase 데이터 표시 영역
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'text-[10px] leading-tight overflow-hidden text-gray-700 whitespace-pre-wrap';
+                
+                // 만약 해당 날짜에 데이터가 있다면
+                if (globalScheduleData[dateString]) {
+                    contentDiv.textContent = globalScheduleData[dateString];
+                    // 일정 강조를 위해 옅은 배경색 추가
+                    dateDiv.classList.add('bg-blue-50'); 
                 }
+                
+                dateDiv.appendChild(contentDiv);
 
-                cellHtml += `</div></div>`;
-                calendarGrid.insertAdjacentHTML('beforeend', cellHtml);
+                // 클릭 이벤트 (팝업 열기)
+                dateDiv.addEventListener('click', () => {
+                    selectedDateId = dateString;
+                    modalDateTitle.textContent = `${year}년 ${month}월 ${i}일 스케줄`;
+                    scheduleInput.value = globalScheduleData[dateString] || ''; // 기존 데이터 불러오기
+                    modal.classList.remove('hidden');
+                });
+
+                calendarGrid.appendChild(dateDiv);
             }
         }
 
-        function openModal(dateString, day, dayOfWeek) {
-            const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-            document.getElementById('modalDateTitle').textContent = `${currentDate.getMonth() + 1}월 ${day}일 (${weekDays[dayOfWeek]})`;
-            
-            const contentDiv = document.getElementById('modalContent');
-            contentDiv.innerHTML = ''; // 초기화
-            
-            const data = mockData[dateString];
-
-            if (!data) {
-                contentDiv.innerHTML = `<p class="text-gray-500 text-center py-4 text-sm">등록된 일정 및 스케줄이 없습니다.</p>`;
-            } else {
-                // 1. 기본 근무
-                if (data.shifts && data.shifts.length > 0) {
-                    let shiftsHtml = `<div class="bg-gray-50 p-3 rounded-lg"><h3 class="text-xs font-bold text-gray-500 mb-2">기본 근무</h3><div class="flex gap-2">`;
-                    data.shifts.forEach(shift => {
-                        shiftsHtml += `<span class="text-sm px-2 py-1 rounded-md ${shift.class} font-medium">${shift.type}: ${shift.name}</span>`;
-                    });
-                    shiftsHtml += `</div></div>`;
-                    contentDiv.innerHTML += shiftsHtml;
-                }
-
-                // 2. 초과 근무
-                if (data.overtimes && data.overtimes.length > 0) {
-                    let otHtml = `<div class="bg-orange-50/50 p-3 rounded-lg border border-orange-100"><h3 class="text-xs font-bold text-orange-600 mb-2">초과 근무 (결원대체)</h3><ul class="space-y-1">`;
-                    data.overtimes.forEach(ot => {
-                        otHtml += `<li class="text-sm text-gray-700 flex justify-between">
-                            <span><strong class="font-semibold text-orange-700">[${ot.type}]</strong> ${ot.name}</span>
-                            <span class="text-gray-500 text-xs">${ot.time}</span>
-                        </li>`;
-                    });
-                    otHtml += `</ul></div>`;
-                    contentDiv.innerHTML += otHtml;
-                }
-
-                // 3. 팀 일정
-                if (data.events && data.events.length > 0) {
-                    let evHtml = `<div class="bg-blue-50/50 p-3 rounded-lg border border-blue-100"><h3 class="text-xs font-bold text-blue-600 mb-2">팀 주요 일정</h3><ul class="space-y-2">`;
-                    data.events.forEach(ev => {
-                        evHtml += `<li class="text-sm text-gray-700 flex items-start gap-2">
-                            <span class="text-lg leading-none">${ev.icon}</span>
-                            <div class="flex flex-col">
-                                <span class="font-semibold">${ev.title}</span>
-                                <span class="text-xs text-gray-500">${ev.time} | ${ev.location}</span>
-                            </div>
-                        </li>`;
-                    });
-                    evHtml += `</ul></div>`;
-                    contentDiv.innerHTML += evHtml;
-                }
-            }
-
-            // 애니메이션과 함께 모달 표시
-            const modal = document.getElementById('detailModal');
-            const modalInner = modal.querySelector('div');
-            modal.classList.remove('hidden');
-            // 약간의 딜레이를 주어 브라우저가 display:block을 인지한 후 opacity 트랜지션 실행
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-                modalInner.classList.remove('scale-95');
-                modalInner.classList.add('scale-100');
-            }, 10);
-        }
-
-        function closeModal() {
-            const modal = document.getElementById('detailModal');
-            const modalInner = modal.querySelector('div');
-            
-            modal.classList.add('opacity-0');
-            modalInner.classList.remove('scale-100');
-            modalInner.classList.add('scale-95');
-            
-            // 애니메이션이 끝난 후 hidden 클래스 추가
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 300);
-        }
-
-        document.getElementById('prevMonth').addEventListener('click', () => {
-            currentDate.setMonth(currentDate.getMonth() - 1);
-            renderCalendar();
+        // 팝업 닫기 버튼
+        document.getElementById('closeModalBtn').addEventListener('click', () => {
+            modal.classList.add('hidden');
         });
 
-        document.getElementById('nextMonth').addEventListener('click', () => {
-            currentDate.setMonth(currentDate.getMonth() + 1);
-            renderCalendar();
+        // 팝업 저장 버튼 (Firebase에 저장)
+        document.getElementById('saveScheduleBtn').addEventListener('click', () => {
+            const newSchedule = scheduleInput.value.trim();
+            const dateRef = ref(db, `schedules/${selectedDateId}`);
+            
+            // 입력칸이 비어있으면 데이터 삭제, 아니면 덮어쓰기
+            set(dateRef, newSchedule ? newSchedule : null)
+                .then(() => {
+                    modal.classList.add('hidden');
+                })
+                .catch((error) => {
+                    alert("저장 실패: " + error);
+                });
         });
 
-        document.getElementById('closeModal').addEventListener('click', closeModal);
-        document.getElementById('closeModalBtn').addEventListener('click', closeModal);
-
-        // 모달 바깥 영역(검은 배경) 클릭 시 닫기
-        document.getElementById('detailModal').addEventListener('click', (e) => {
-            if (e.target === document.getElementById('detailModal')) {
-                closeModal();
-            }
+        // 월 이동 버튼
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+            renderCalendar(currentYear, currentMonth);
         });
 
-        // 초기 화면 렌더링
-        renderCalendar();
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+            renderCalendar(currentYear, currentMonth);
+        });
+
     </script>
 </body>
 </html>
