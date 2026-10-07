@@ -43,7 +43,7 @@
         </div>
 
         <!-- 달력 날짜 그리드 -->
-        <div id="calendarGrid" class="grid grid-cols-7 auto-rows-[100px] border-b bg-white">
+        <div id="calendarGrid" class="grid grid-cols-7 auto-rows-[100px] border-b bg-white relative">
             <!-- 자바스크립트로 채워짐 -->
         </div>
     </div>
@@ -61,4 +61,343 @@
                         <label for="otNone" class="block border border-gray-300 rounded p-2 cursor-pointer transition">없음</label>
                     </div>
                     <div>
-                        <input type="radio" id="ot
+                        <input type="radio" id="otDay" name="overtimeType" value="주간" class="hidden">
+                        <label for="otDay" class="block border border-gray-300 rounded p-2 cursor-pointer transition">주간</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="otNight" name="overtimeType" value="야간" class="hidden">
+                        <label for="otNight" class="block border border-gray-300 rounded p-2 cursor-pointer transition">야간</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="otPart" name="overtimeType" value="시간" class="hidden">
+                        <label for="otPart" class="block border border-gray-300 rounded p-2 cursor-pointer transition">시간</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-semibold mb-1 text-gray-700">초과 근무자</label>
+                <input type="text" id="workerName" placeholder="예: 파닥몬, 펭펭몬(09~11)" class="w-full border border-gray-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-sm font-semibold mb-1 text-gray-700">팀 일정 및 메모</label>
+                <textarea id="memoInput" rows="2" placeholder="예: 14시 국과수 방문" class="w-full border border-gray-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"></textarea>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button id="closeModalBtn" class="px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg">취소</button>
+                <button id="saveScheduleBtn" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 검색 결과 모달 -->
+    <div id="searchModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div class="bg-white p-5 rounded-xl w-11/12 max-w-sm shadow-2xl flex flex-col max-h-[80vh]">
+            <h2 class="text-lg font-bold mb-3 text-gray-800 border-b pb-2 flex justify-between">
+                <span>🔍 검색 결과</span>
+                <span id="searchCount" class="text-sm text-blue-600 font-normal"></span>
+            </h2>
+            <div id="searchResultsList" class="overflow-y-auto flex-1 space-y-3 mb-4"></div>
+            <button id="closeSearchModalBtn" class="w-full py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg">닫기</button>
+        </div>
+    </div>
+
+    <!-- 월간 통계 모달 -->
+    <div id="statsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div class="bg-white p-5 rounded-xl w-11/12 max-w-sm shadow-2xl">
+            <h2 id="statsTitle" class="text-lg font-bold mb-4 text-gray-800 border-b pb-2"></h2>
+            <div class="overflow-hidden rounded-lg border border-gray-200 mb-4">
+                <table class="w-full text-sm text-center">
+                    <thead class="bg-gray-100 text-gray-700">
+                        <tr>
+                            <th class="p-2 border-b">이름</th>
+                            <th class="p-2 border-b">주간</th>
+                            <th class="p-2 border-b">야간</th>
+                            <th class="p-2 border-b">시간</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statsTableBody" class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+            <button id="closeStatsModalBtn" class="w-full py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg">닫기</button>
+        </div>
+    </div>
+
+    <!-- Firebase 및 로직 -->
+    <script type="module">
+        // [디버깅용] 에러 발생 시 화면에 띄워주는 안전장치
+        window.addEventListener('error', function(e) {
+            alert("시스템 에러가 발생했습니다: " + e.message + "\n(이 메시지를 파닥몬님에게 알려주세요)");
+        });
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
+
+        // 입력해주신 파이어베이스 정보 적용 완료
+        const firebaseConfig = {
+            apiKey: "AIzaSyB_VB9Jt0fJvoxD76PtnYiHL59EZrmtSwA",
+            authDomain: "schedule-bydy.firebaseapp.com",
+            databaseURL: "https://schedule-bydy-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "schedule-bydy",
+            storageBucket: "schedule-bydy.firebasestorage.app",
+            messagingSenderId: "722259608031",
+            appId: "1:722259608031:web:dd3a7b0ac9758ed8bd046a"
+        };
+
+        let app, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getDatabase(app);
+        } catch (initError) {
+            alert("파이어베이스 연결 실패: 설정 코드를 확인해주세요.\n" + initError.message);
+        }
+
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth() + 1;
+        let selectedDateId = ""; 
+        let globalScheduleData = {}; 
+
+        // 3교대 기준일 (2026년 10월 7일 당번 기준)
+        const baseDutyDate = new Date(2026, 9, 7); 
+
+        const calendarGrid = document.getElementById('calendarGrid');
+        const scheduleModal = document.getElementById('scheduleModal');
+        const searchModal = document.getElementById('searchModal');
+        const statsModal = document.getElementById('statsModal');
+        const workerName = document.getElementById('workerName');
+        const memoInput = document.getElementById('memoInput');
+
+        // 달력 우선 렌더링 (데이터 로딩 전 빈 달력부터 보여주기)
+        renderCalendar(currentYear, currentMonth);
+
+        // Firebase 데이터 구독
+        if (db) {
+            const schedulesRef = ref(db, 'schedules_v2'); 
+            onValue(schedulesRef, (snapshot) => {
+                globalScheduleData = snapshot.val() || {};
+                renderCalendar(currentYear, currentMonth); 
+            }, (error) => {
+                alert("데이터를 불러오지 못했습니다. 데이터베이스 보안 규칙(테스트 모드)을 확인해주세요!\n" + error.message);
+            });
+        }
+
+        function getShiftColorClass(year, month, day) {
+            const targetDate = new Date(year, month - 1, day);
+            const diffTime = targetDate.getTime() - baseDutyDate.getTime();
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            
+            let shiftCycle = diffDays % 3;
+            if (shiftCycle < 0) shiftCycle += 3;
+
+            if (shiftCycle === 0) return 'bg-orange-50';   // 당번
+            if (shiftCycle === 1) return 'bg-teal-50';     // 비번1
+            if (shiftCycle === 2) return 'bg-indigo-50';   // 비번2
+            return 'bg-white';
+        }
+
+        function renderCalendar(year, month) {
+            if (!calendarGrid) return;
+            calendarGrid.innerHTML = ''; 
+            document.getElementById('monthTitle').textContent = `${year}년 ${month}월`;
+
+            const firstDay = new Date(year, month - 1, 1).getDay();
+            const lastDate = new Date(year, month, 0).getDate();
+
+            for (let i = 0; i < firstDay; i++) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'border-r border-b bg-gray-100 opacity-50';
+                calendarGrid.appendChild(emptyDiv);
+            }
+
+            for (let i = 1; i <= lastDate; i++) {
+                const dateString = `${year}-${String(month).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                
+                const dateDiv = document.createElement('div');
+                const shiftBgColor = getShiftColorClass(year, month, i);
+                dateDiv.className = `border-r border-b p-1 flex flex-col relative active:bg-gray-200 no-tap-highlight cursor-pointer ${shiftBgColor}`;
+                
+                const daySpan = document.createElement('span');
+                daySpan.className = 'text-xs font-bold mb-1';
+                const currentDayOfWeek = new Date(year, month - 1, i).getDay();
+                if (currentDayOfWeek === 0) daySpan.classList.add('text-red-500');
+                if (currentDayOfWeek === 6) daySpan.classList.add('text-blue-500');
+                daySpan.textContent = i;
+                dateDiv.appendChild(daySpan);
+
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'text-[10px] leading-tight overflow-hidden whitespace-pre-wrap flex flex-col gap-1';
+                
+                const dayData = globalScheduleData[dateString];
+                if (dayData) {
+                    if (dayData.overtimeType && dayData.workerName) {
+                        const otLabel = document.createElement('span');
+                        otLabel.className = 'font-bold text-blue-700 bg-white/60 px-1 rounded-sm block';
+                        otLabel.textContent = `[${dayData.overtimeType}] ${dayData.workerName}`;
+                        contentDiv.appendChild(otLabel);
+                    }
+                    if (dayData.memo) {
+                        const memoLabel = document.createElement('span');
+                        memoLabel.className = 'text-gray-700 block line-clamp-2';
+                        memoLabel.textContent = String(dayData.memo);
+                        contentDiv.appendChild(memoLabel);
+                    }
+                }
+                
+                dateDiv.appendChild(contentDiv);
+
+                // 클릭 이벤트
+                dateDiv.addEventListener('click', () => {
+                    selectedDateId = dateString;
+                    document.getElementById('modalDateTitle').textContent = `${year}년 ${month}월 ${i}일 일정`;
+                    
+                    document.getElementById('otNone').checked = true;
+                    workerName.value = '';
+                    memoInput.value = '';
+
+                    if (dayData) {
+                        if (dayData.overtimeType) {
+                            const radioBtn = document.querySelector(`input[name="overtimeType"][value="${dayData.overtimeType}"]`);
+                            if(radioBtn) radioBtn.checked = true;
+                        }
+                        workerName.value = dayData.workerName || '';
+                        memoInput.value = dayData.memo || '';
+                    }
+                    
+                    scheduleModal.classList.remove('hidden');
+                });
+
+                calendarGrid.appendChild(dateDiv);
+            }
+        }
+
+        // 스케줄 저장
+        document.getElementById('saveScheduleBtn').addEventListener('click', () => {
+            const selectedType = document.querySelector('input[name="overtimeType"]:checked').value;
+            const worker = workerName.value.trim();
+            const memo = memoInput.value.trim();
+
+            const dateRef = ref(db, `schedules_v2/${selectedDateId}`);
+            
+            if (!selectedType && !worker && !memo) {
+                set(dateRef, null).catch(e => alert("삭제 오류: " + e.message));
+            } else {
+                set(dateRef, {
+                    overtimeType: selectedType,
+                    workerName: worker,
+                    memo: memo
+                }).catch(e => alert("저장 오류: " + e.message));
+            }
+            scheduleModal.classList.add('hidden');
+        });
+
+        // 통계 기능
+        document.getElementById('statsBtn').addEventListener('click', () => {
+            document.getElementById('statsTitle').textContent = `${currentYear}년 ${currentMonth}월 초과근무 통계`;
+            const statsTableBody = document.getElementById('statsTableBody');
+            statsTableBody.innerHTML = '';
+            
+            const stats = {};
+            const currentMonthPrefix = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+
+            Object.keys(globalScheduleData).forEach(dateStr => {
+                if (dateStr.startsWith(currentMonthPrefix)) {
+                    const data = globalScheduleData[dateStr];
+                    if (data.overtimeType && data.workerName) {
+                        const workers = String(data.workerName).split(',');
+                        workers.forEach(w => {
+                            const name = w.trim();
+                            if (!name) return;
+                            if (!stats[name]) stats[name] = { '주간': 0, '야간': 0, '시간': 0 };
+                            if (stats[name][data.overtimeType] !== undefined) {
+                                stats[name][data.overtimeType]++;
+                            }
+                        });
+                    }
+                }
+            });
+
+            const workerNames = Object.keys(stats);
+            if (workerNames.length === 0) {
+                statsTableBody.innerHTML = '<tr><td colspan="4" class="p-4 text-gray-500">초과근무 기록이 없습니다.</td></tr>';
+            } else {
+                workerNames.forEach(name => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="p-2 border-b font-semibold text-gray-800">${name}</td>
+                        <td class="p-2 border-b text-blue-600">${stats[name]['주간']}건</td>
+                        <td class="p-2 border-b text-indigo-600">${stats[name]['야간']}건</td>
+                        <td class="p-2 border-b text-teal-600">${stats[name]['시간']}건</td>
+                    `;
+                    statsTableBody.appendChild(tr);
+                });
+            }
+            statsModal.classList.remove('hidden');
+        });
+
+        // 검색 기능
+        document.getElementById('searchBtn').addEventListener('click', () => {
+            const query = document.getElementById('searchInput').value.trim().toLowerCase();
+            if (!query) {
+                alert("검색어를 입력해주세요.");
+                return;
+            }
+
+            const resultsList = document.getElementById('searchResultsList');
+            resultsList.innerHTML = '';
+            let count = 0;
+
+            const dates = Object.keys(globalScheduleData).sort((a, b) => b.localeCompare(a)); 
+            
+            dates.forEach(dateStr => {
+                const data = globalScheduleData[dateStr];
+                const textToSearch = `${data.workerName || ''} ${data.memo || ''} ${data.overtimeType || ''}`.toLowerCase();
+                
+                if (textToSearch.includes(query)) {
+                    count++;
+                    const div = document.createElement('div');
+                    div.className = 'p-3 bg-gray-50 rounded border border-gray-200 text-sm';
+                    
+                    let innerHTML = `<div class="font-bold text-blue-700 mb-1">${dateStr}</div>`;
+                    if (data.overtimeType && data.workerName) {
+                        innerHTML += `<div class="text-gray-800"><b>[${data.overtimeType}]</b> ${data.workerName}</div>`;
+                    }
+                    if (data.memo) {
+                        // 정규식 오류 방지 안전처리
+                        const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const highlightedMemo = String(data.memo).replace(new RegExp(safeQuery, 'gi'), match => `<span class="bg-yellow-200 font-bold">${match}</span>`);
+                        innerHTML += `<div class="text-gray-600 mt-1">${highlightedMemo}</div>`;
+                    }
+                    div.innerHTML = innerHTML;
+                    resultsList.appendChild(div);
+                }
+            });
+
+            document.getElementById('searchCount').textContent = `${count}건 발견`;
+            if (count === 0) {
+                resultsList.innerHTML = '<div class="text-center text-gray-500 py-4">검색 결과가 없습니다.</div>';
+            }
+            searchModal.classList.remove('hidden');
+        });
+
+        // 모달 닫기
+        document.getElementById('closeModalBtn').addEventListener('click', () => scheduleModal.classList.add('hidden'));
+        document.getElementById('closeStatsModalBtn').addEventListener('click', () => statsModal.classList.add('hidden'));
+        document.getElementById('closeSearchModalBtn').addEventListener('click', () => searchModal.classList.add('hidden'));
+
+        // 월 이동
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+            renderCalendar(currentYear, currentMonth);
+        });
+
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+            renderCalendar(currentYear, currentMonth);
+        });
+    </script>
+</body>
+</html>
